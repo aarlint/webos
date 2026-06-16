@@ -654,20 +654,41 @@ function openChat() {
     logEl.scrollTop = logEl.scrollHeight;
     return b;
   }
+  // A collapsible "Thinking" disclosure showing the model's captured reasoning.
+  function thinkingDisclosure(text) {
+    const d = document.createElement("details");
+    d.className = "chat-think";
+    const s = document.createElement("summary");
+    s.textContent = "💭 Thinking";
+    const pre = div("chat-think-body");
+    pre.textContent = text;
+    d.appendChild(s); d.appendChild(pre);
+    return d;
+  }
   function send() {
     const text = input.value.trim();
     if (!text) return;
     input.value = "";
     history.push({ role: "user", content: text });
     bubble("user", text);
-    const thinking = bubble("assistant thinking", "…");
+    // Live spinner bubble: a circular waiting icon + a label that tracks the
+    // current agent activity (govern broadcasts a label per tool call).
+    const pending = div("chat-msg assistant pending");
+    pending.innerHTML = '<span class="chat-spinner"></span><span class="chat-pending-label">Thinking…</span>';
+    logEl.appendChild(pending);
+    logEl.scrollTop = logEl.scrollHeight;
+    const label = pending.querySelector(".chat-pending-label");
+    chatActivityHook = (msg) => { if (msg.state !== "done" && msg.label) label.textContent = msg.label; };
     btn.disabled = true;
     invoke("chat.send", { messages: history }, { then: (m) => {
       btn.disabled = false;
-      thinking.remove();
+      chatActivityHook = null;
+      pending.remove();
       if (!m.ok) { bubble("assistant err", "⛔ " + m.error); return; }
       const reply = m.data.reply || "(no reply)";
       history.push({ role: "assistant", content: reply });
+      const think = (m.data.thinking || "").trim();
+      if (think) logEl.appendChild(thinkingDisclosure(think));
       bubble("assistant", reply);
       (m.data.surfaces || []).forEach((id) => openApp(id, id)); // assistant opened a window
       logEl.scrollTop = logEl.scrollHeight;
@@ -1078,10 +1099,14 @@ function tick() {
 // not the user triggered it. Pushed by kerneld's gate (govern) over the bus.
 const aiInflight = new Map();
 let toastHideTimer = null;
+// The open Chat window registers here while a chat.send is in flight so the
+// in-chat spinner shows the SAME live activity labels as the top-right toast.
+let chatActivityHook = null;
 function onActivity(msg) {
   if (msg.state === "done") aiInflight.delete(msg.token);
   else aiInflight.set(msg.token || "x", msg.label || "Working…");
   renderToast();
+  if (chatActivityHook) chatActivityHook(msg);
 }
 function renderToast() {
   const el = $("#agent-toast");

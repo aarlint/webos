@@ -84,7 +84,8 @@ fn friendly_label(cap: &str) -> String {
         "files.read" => "Reading a real file",
         "files.list" => "Browsing your files",
         "mount.list" => "Listing mounted folders",
-        "ui.table" | "ui.chart" | "ui.board" | "ui.surface" | "ui.render" => "Building a view",
+        "ui.table" | "ui.chart" | "ui.board" | "ui.master_detail" | "ui.surface" | "ui.render" => "Building a view",
+        "ui.patch" => "Updating a view",
         "ai.compose" => "Composing a screen",
         other => other,
     }

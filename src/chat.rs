@@ -118,19 +118,26 @@ pub async fn send(args: &Value, state: &AppState) -> Result<Value, String> {
     let mut rendered: Vec<String> = Vec::new();
     let mut seen: HashSet<String> = HashSet::new();
     let mut last_content = String::new();
+    // Reasoning captured across rounds (native message.thinking + inline <think>
+    // blocks), returned so the chat UI can show it as a collapsible disclosure.
+    let mut thoughts: Vec<String> = Vec::new();
 
     for round in 0..MAX_ROUNDS {
         let assistant = model_chat(&msgs, state, true).await?;
         let tool_calls = assistant.get("tool_calls").and_then(|v| v.as_array()).cloned().unwrap_or_default();
-        let content = model::strip_think(assistant.get("content").and_then(|v| v.as_str()).unwrap_or(""));
+        let (content, inline_think) = model::extract_think(assistant.get("content").and_then(|v| v.as_str()).unwrap_or(""));
+        let native_think = assistant.get("thinking").and_then(|v| v.as_str()).unwrap_or("");
+        for t in [native_think, inline_think.as_str()] {
+            if !t.is_empty() { thoughts.push(t.to_string()); }
+        }
         if !content.is_empty() {
             last_content = content.clone();
         }
-        tracing::info!("chat round {round}: {} tool_call(s), {} content chars", tool_calls.len(), content.len());
+        tracing::info!("chat round {round}: {} tool_call(s), {} content chars, {} think chars", tool_calls.len(), content.len(), native_think.len() + inline_think.len());
         msgs.push(assistant.clone());
 
         if tool_calls.is_empty() {
-            return Ok(json!({ "reply": content, "surfaces": rendered }));
+            return Ok(json!({ "reply": content, "surfaces": rendered, "thinking": thoughts.join("\n\n———\n\n") }));
         }
 
         let mut any_new = false;
@@ -188,14 +195,18 @@ pub async fn send(args: &Value, state: &AppState) -> Result<Value, String> {
     // already gathered (qwen otherwise keeps exploring / returns empty).
     msgs.push(json!({ "role": "user", "content": "Using only the tool results already gathered above, answer my original question now in concise plain text. Do not ask to call more tools." }));
     let assistant = model_chat(&msgs, state, false).await?;
-    let reply = model::strip_think(assistant.get("content").and_then(|v| v.as_str()).unwrap_or(""));
+    let (reply, inline_think) = model::extract_think(assistant.get("content").and_then(|v| v.as_str()).unwrap_or(""));
+    let native_think = assistant.get("thinking").and_then(|v| v.as_str()).unwrap_or("");
+    for t in [native_think, inline_think.as_str()] {
+        if !t.is_empty() { thoughts.push(t.to_string()); }
+    }
     let reply = if reply.is_empty() { last_content } else { reply };
     let reply = if reply.is_empty() {
         "I gathered the data but couldn't compose a reply — try rephrasing.".to_string()
     } else {
         reply
     };
-    Ok(json!({ "reply": reply, "surfaces": rendered }))
+    Ok(json!({ "reply": reply, "surfaces": rendered, "thinking": thoughts.join("\n\n———\n\n") }))
 }
 
 /// Shrink a connector result to scalar fields only: drop nested objects/arrays,
