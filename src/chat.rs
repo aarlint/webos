@@ -122,7 +122,7 @@ pub async fn send(args: &Value, state: &AppState) -> Result<Value, String> {
     for round in 0..MAX_ROUNDS {
         let assistant = model_chat(&msgs, state, true).await?;
         let tool_calls = assistant.get("tool_calls").and_then(|v| v.as_array()).cloned().unwrap_or_default();
-        let content = assistant.get("content").and_then(|v| v.as_str()).unwrap_or("").to_string();
+        let content = model::strip_think(assistant.get("content").and_then(|v| v.as_str()).unwrap_or(""));
         if !content.is_empty() {
             last_content = content.clone();
         }
@@ -163,7 +163,7 @@ pub async fn send(args: &Value, state: &AppState) -> Result<Value, String> {
             // Box::pin breaks the govern→dispatch→chat→govern async recursion.
             let content = match Box::pin(gate::govern("ai", &name, &targs, state)).await {
                 gate::Outcome::Ok(v) => {
-                    if name == "ui.table" || name == "ui.chart" || name == "ui.board" || name == "ui.surface" || name == "ui.render" {
+                    if name == "ui.table" || name == "ui.chart" || name == "ui.board" || name == "ui.master_detail" || name == "ui.surface" || name == "ui.render" {
                         if let Some(id) = v.get("stored").and_then(|x| x.as_str()) {
                             rendered.push(id.to_string());
                         }
@@ -188,7 +188,7 @@ pub async fn send(args: &Value, state: &AppState) -> Result<Value, String> {
     // already gathered (qwen otherwise keeps exploring / returns empty).
     msgs.push(json!({ "role": "user", "content": "Using only the tool results already gathered above, answer my original question now in concise plain text. Do not ask to call more tools." }));
     let assistant = model_chat(&msgs, state, false).await?;
-    let reply = assistant.get("content").and_then(|v| v.as_str()).unwrap_or("").to_string();
+    let reply = model::strip_think(assistant.get("content").and_then(|v| v.as_str()).unwrap_or(""));
     let reply = if reply.is_empty() { last_content } else { reply };
     let reply = if reply.is_empty() {
         "I gathered the data but couldn't compose a reply — try rephrasing.".to_string()
@@ -235,9 +235,11 @@ async fn model_chat(messages: &[Value], state: &AppState, with_tools: bool) -> R
     let mut headers = vec![("Content-Type".to_string(), "application/json".to_string())];
     headers.extend(model::cf_headers(state));
 
-    // think:false disables qwen3's reasoning for a fast tool-calling hot path.
+    // think:true lets qwen3 reason before answering/calling tools; the reasoning
+    // goes to message.thinking (separate from content/tool_calls), so the loop
+    // below is unaffected. strip_think guards against inline-<think> leakage.
     let mut body = json!({
-        "model": chat_model, "stream": false, "think": false, "keep_alive": "30m", "messages": messages,
+        "model": chat_model, "stream": false, "think": true, "keep_alive": "30m", "messages": messages,
     });
     if with_tools {
         body["tools"] = tools();
