@@ -32,6 +32,7 @@ pub async fn dispatch(cap: &str, args: &Value, state: &AppState) -> Result<Value
         "ui.table" => ui_table(args, state),
         "ui.chart" => ui_chart(args, state),
         "ui.board" => ui_board(args, state),
+        "ui.master_detail" => ui_master_detail(args, state),
         "ui.surface" => ui_surface(args, state),
         "ai.compose" => Ok(model::compose(args, state).await),
         "chat.send" => crate::chat::send(args, state).await,
@@ -547,6 +548,94 @@ fn ui_board(args: &Value, state: &AppState) -> Result<Value, String> {
 /// This unlocks the full json-render expressiveness for the agent (mixed
 /// Grid/Card/Stack/Metric/Chart/Board layouts, repeat, $state/$cond/$template)
 /// rather than the fixed ui.table/ui.chart/ui.board templates. On success an
+/// Build a CLICKABLE master→detail surface: a list on the left (Table, or a
+/// kanban Board when `groupBy` is set) whose row/card click writes the record to
+/// state `/selected` (selectInto), and a Detail on the right bound to
+/// `{$state:"/selected"}`. The daemon wires the selection path on BOTH sides so
+/// the click-through always connects — the model only picks connector/op.
+fn ui_master_detail(args: &Value, state: &AppState) -> Result<Value, String> {
+    let connector = args.get("connector").and_then(|v| v.as_str()).ok_or("connector required")?;
+    let op = args.get("op").and_then(|v| v.as_str()).ok_or("op required")?;
+    let call_args = args.get("args").cloned().unwrap_or_else(|| json!({}));
+    let (op_items, op_cols) = op_meta(state, connector, op);
+
+    let mut items = args.get("items").cloned().unwrap_or_else(|| json!(""));
+    if items.as_str().map(|s| s.is_empty()).unwrap_or(true) {
+        if let Some(ip) = op_items {
+            items = json!(ip);
+        }
+    }
+    let columns = match args.get("columns") {
+        Some(v) if v.as_array().map(|a| !a.is_empty()).unwrap_or(false) => v.clone(),
+        _ => op_cols.clone(),
+    };
+    // detail fields: caller-supplied, else every curated column as {label,path}
+    let detail_fields = match args.get("detailFields") {
+        Some(v) if v.as_array().map(|a| !a.is_empty()).unwrap_or(false) => v.clone(),
+        _ => json!(op_cols
+            .as_array()
+            .map(|cols| cols
+                .iter()
+                .filter_map(|c| {
+                    let p = c.get("path").and_then(|x| x.as_str())?;
+                    let l = c.get("header").and_then(|x| x.as_str()).unwrap_or(p);
+                    Some(json!({ "label": l, "path": p }))
+                })
+                .collect::<Vec<_>>())
+            .unwrap_or_default()),
+    };
+
+    let refresh = args.get("refresh").and_then(|v| v.as_u64()).unwrap_or(30);
+    let source = json!({ "capability": "conn.call", "args": { "connector": connector, "op": op, "args": call_args } });
+
+    // Left pane: a kanban Board if groupBy given, else a Table. Both clickable.
+    let left = if let Some(gb) = args.get("groupBy").and_then(|v| v.as_str()) {
+        let card_title = args.get("cardTitle").and_then(|v| v.as_str()).unwrap_or("title");
+        let card_fields = json!(op_cols
+            .as_array()
+            .map(|cols| cols
+                .iter()
+                .filter_map(|c| {
+                    let p = c.get("path").and_then(|x| x.as_str())?;
+                    if p == gb || p == card_title { return None; }
+                    let l = c.get("header").and_then(|x| x.as_str()).unwrap_or(p);
+                    Some(json!({ "label": l, "path": p }))
+                })
+                .collect::<Vec<_>>())
+            .unwrap_or_default());
+        json!({ "type": "Board", "props": {
+            "source": source, "items": items, "groupBy": gb, "cardTitle": card_title,
+            "cardFields": card_fields, "selectInto": "/selected", "refresh": refresh
+        }, "children": [] })
+    } else {
+        json!({ "type": "Table", "props": {
+            "source": source, "items": items, "columns": columns,
+            "selectInto": "/selected", "refresh": refresh
+        }, "children": [] })
+    };
+    let detail = json!({ "type": "Detail", "props": {
+        "record": { "$state": "/selected" }, "empty": "Select an item to view details",
+        "fields": detail_fields
+    }, "children": [] });
+
+    let title = args.get("title").and_then(|v| v.as_str()).unwrap_or(op).to_string();
+    let id = format!("aiwin-{}", state.seq.fetch_add(1, Ordering::Relaxed));
+    let surface = json!({
+        "id": id, "title": title,
+        "icon": args.get("icon").and_then(|v| v.as_str()).unwrap_or("grid"),
+        "root": "stack", "state": { "selected": null },
+        "elements": {
+            "stack": { "type": "Stack", "props": {}, "children": ["head", "grid"] },
+            "head": { "type": "Heading", "props": { "value": title }, "children": [] },
+            "grid": { "type": "Grid", "props": { "cols": 2 }, "children": ["master", "detail"] },
+            "master": left,
+            "detail": detail
+        }
+    });
+    state.surfaces.lock().unwrap().insert(id.clone(), surface);
+    Ok(json!({ "stored": id }))
+}
+
 /// `aiwin-N` id is minted when none was supplied and `{stored:id}` is returned;
 /// on validation failure a clear error string comes back so the agent can fix +
 /// retry. The spec is accepted either as the args themselves or wrapped under a

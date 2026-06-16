@@ -224,13 +224,27 @@ function makeDraggable(w, handle) {
     // floating: drag by body, but keep inputs/buttons/resize + text-selection usable
     if (w.floating && e.target.closest && e.target.closest("input,button,select,textarea,a,.fw-btn,.resize,[contenteditable]")) return;
     const sx = e.clientX, sy = e.clientY, ox = w.node.offsetLeft, oy = w.node.offsetTop;
-    handle.setPointerCapture(e.pointerId);
+    // Movement threshold: below 4px it's a CLICK (let it bubble to row/card
+    // handlers), above it's a DRAG. No setPointerCapture — capturing on the
+    // window handle steals the click event from interactive surface content,
+    // which broke follow-up row selection in floating widgets.
+    let dragging = false;
     const move = (ev) => {
-      w.node.style.left = clamp(ox + ev.clientX - sx, -w.node.offsetWidth + 80, window.innerWidth - 80) + "px";
-      w.node.style.top = clamp(oy + ev.clientY - sy, 28, window.innerHeight - 40) + "px";
+      const dx = ev.clientX - sx, dy = ev.clientY - sy;
+      if (!dragging) {
+        if (Math.abs(dx) + Math.abs(dy) < 4) return;
+        dragging = true;
+        document.body.style.userSelect = "none";
+      }
+      w.node.style.left = clamp(ox + dx, -w.node.offsetWidth + 80, window.innerWidth - 80) + "px";
+      w.node.style.top = clamp(oy + dy, 28, window.innerHeight - 40) + "px";
     };
-    const up = () => { handle.removeEventListener("pointermove", move); handle.removeEventListener("pointerup", up); };
-    handle.addEventListener("pointermove", move); handle.addEventListener("pointerup", up);
+    const up = () => {
+      document.removeEventListener("pointermove", move);
+      document.removeEventListener("pointerup", up);
+      document.body.style.userSelect = "";
+    };
+    document.addEventListener("pointermove", move); document.addEventListener("pointerup", up);
   });
 }
 function makeResizable(w) {
