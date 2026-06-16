@@ -1,0 +1,14 @@
+# Rust build output
+/target
+
+# Runtime state + SEALED SECRETS (creds.key, creds_sealed.bin), connectors, apps,
+# routines, settings, mounted-file scratch — never commit these.
+/sandbox
+
+# Node / Vite (the ui/ build deps; web/surface.js + web/surface.css ARE committed)
+node_modules/
+**/node_modules/
+
+# Misc
+*.log
+.DS_Store

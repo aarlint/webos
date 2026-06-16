@@ -1,0 +1,195 @@
+/*
+ * webOS SURFACE styles — Tailwind v4 + shadcn/ui design tokens, SCOPED.
+ *
+ * This file is compiled by @tailwindcss/vite into web/surface.css and loaded by
+ * web/index.html ALONGSIDE web/style.css (the vanilla shell's stylesheet).
+ *
+ * THE HARD CONSTRAINT: these styles must NOT touch the vanilla shell (dock,
+ * menubar, windows, chat, consent modal, toasts). Tailwind's stock entry
+ * (`@import "tailwindcss"`) ships a *global* Preflight that resets `*`, button,
+ * input, ul/ol, img/svg, table … on the whole document — that would clobber the
+ * shell. So we deliberately AVOID the global Preflight and instead:
+ *
+ *   1. import only the theme variables (harmless — they just declare --color-*)
+ *      and the utility classes,
+ *   2. re-implement the slice of Preflight the shadcn components actually rely
+ *      on (box-sizing, border baseline, button/input font reset, list reset,
+ *      replaced-element display) SCOPED under `.webos-surface`,
+ *   3. declare the shadcn design tokens (--background/--primary/--border/…)
+ *      scoped under `.webos-surface`, themed to match the webOS dark glass UI.
+ *
+ * Every mounted surface container (the floating widget window's `.content`) is
+ * tagged `.webos-surface` in surface.tsx, so all of the above only applies
+ * inside an AI-composed surface and never leaks to the shell chrome.
+ */
+
+@layer theme, base, components, utilities;
+
+/* Theme variables (the full Tailwind palette + spacing/radius/etc). These only
+   DEFINE custom properties; they style nothing on their own, so importing them
+   globally is safe and cannot affect the shell. */
+@import "tailwindcss/theme.css" layer(theme);
+
+/* The utility classes (bg-*, text-*, p-*, flex, grid, …). Tailwind tree-shakes
+   to only the classes it can find, so we point it at our own source AND at the
+   prebuilt shadcn component bundle (whose className strings must be scanned or
+   their utilities would be purged). */
+@source "./";
+@source "../node_modules/@json-render/shadcn/dist";
+@import "tailwindcss/utilities.css" layer(utilities);
+
+/* ── shadcn design tokens, scoped + dark-glass themed ────────────────────────
+   `@theme inline` makes Tailwind emit utilities (bg-background, text-primary,
+   border-border, ring-ring, …) that resolve to these vars at use-site. The vars
+   themselves are given values inside `.webos-surface` below, so they only take
+   effect within a mounted surface. */
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+}
+
+/* The token values. Dark glass to match web/style.css (--accent #5b8cff,
+   --ok #3ecf8e, --deny #ff5f57, --fg #e9ebf0, --muted #9aa2b1). Scoped to the
+   surface root so the shell's own variables are never shadowed. */
+.webos-surface {
+  --background: rgba(255, 255, 255, 0.02);
+  --foreground: #e9ebf0;
+  --card: rgba(255, 255, 255, 0.04);
+  --card-foreground: #e9ebf0;
+  --popover: #1c1d23;
+  --popover-foreground: #e9ebf0;
+  --primary: #5b8cff;
+  --primary-foreground: #0b1020;
+  --secondary: rgba(255, 255, 255, 0.08);
+  --secondary-foreground: #e9ebf0;
+  --muted: rgba(255, 255, 255, 0.06);
+  --muted-foreground: #9aa2b1;
+  --accent: rgba(91, 140, 255, 0.16);
+  --accent-foreground: #cdd8ff;
+  --destructive: #ff5f57;
+  --destructive-foreground: #1a0c0c;
+  --border: rgba(255, 255, 255, 0.1);
+  --input: rgba(255, 255, 255, 0.12);
+  --ring: #5b8cff;
+  --radius: 0.6rem;
+
+  color: var(--foreground);
+  font-family: var(
+    --font,
+    -apple-system,
+    BlinkMacSystemFont,
+    "SF Pro Text",
+    "SF Pro Display",
+    system-ui,
+    sans-serif
+  );
+}
+
+/* ── scoped Preflight ────────────────────────────────────────────────────────
+   The minimal slice the shadcn components depend on, confined to `.webos-surface`
+   and its descendants. Mirrors tailwindcss/preflight.css but never escapes the
+   surface root, so the shell's buttons/lists/inputs/images are untouched. */
+@layer base {
+  .webos-surface *,
+  .webos-surface *::after,
+  .webos-surface *::before {
+    box-sizing: border-box;
+    border: 0 solid var(--border);
+  }
+  .webos-surface h1,
+  .webos-surface h2,
+  .webos-surface h3,
+  .webos-surface h4,
+  .webos-surface h5,
+  .webos-surface h6 {
+    font-size: inherit;
+    font-weight: inherit;
+    margin: 0;
+  }
+  .webos-surface p {
+    margin: 0;
+  }
+  .webos-surface a {
+    color: inherit;
+    text-decoration: inherit;
+  }
+  .webos-surface b,
+  .webos-surface strong {
+    font-weight: bolder;
+  }
+  .webos-surface code,
+  .webos-surface kbd,
+  .webos-surface samp,
+  .webos-surface pre {
+    font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+    font-size: 1em;
+  }
+  .webos-surface ol,
+  .webos-surface ul,
+  .webos-surface menu {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+  .webos-surface img,
+  .webos-surface svg,
+  .webos-surface video,
+  .webos-surface canvas {
+    display: block;
+    vertical-align: middle;
+  }
+  .webos-surface img,
+  .webos-surface video {
+    max-width: 100%;
+    height: auto;
+  }
+  .webos-surface button,
+  .webos-surface input,
+  .webos-surface select,
+  .webos-surface optgroup,
+  .webos-surface textarea {
+    font: inherit;
+    letter-spacing: inherit;
+    color: inherit;
+    border-radius: 0;
+    background-color: transparent;
+    opacity: 1;
+  }
+  .webos-surface button,
+  .webos-surface input:where([type="button"], [type="reset"], [type="submit"]) {
+    appearance: button;
+  }
+  .webos-surface ::placeholder {
+    opacity: 1;
+    color: color-mix(in oklab, currentcolor 50%, transparent);
+  }
+  .webos-surface textarea {
+    resize: vertical;
+  }
+  .webos-surface table {
+    text-indent: 0;
+    border-color: inherit;
+    border-collapse: collapse;
+  }
+}

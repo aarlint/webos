@@ -1,0 +1,25 @@
+{
+  "id": "github-public",
+  "name": "GitHub (public)",
+  "description": "Browse any GitHub user's public repositories. No credentials required.",
+  "icon": "git",
+  "kind": "manual_rest",
+  "base_url": "https://api.github.com",
+  "allowed_hosts": ["api.github.com"],
+  "ops": [
+    {
+      "id": "list_repos",
+      "method": "GET",
+      "path_template": "/users/{user}/repos",
+      "allowed_query": ["sort", "per_page"],
+      "class": "read",
+      "summary": "List a user's public repositories",
+      "default_args": { "user": "octocat", "per_page": "30" },
+      "default_columns": [
+        { "header": "Name", "path": "name" },
+        { "header": "Stars", "path": "stargazers_count" },
+        { "header": "Language", "path": "language" }
+      ]
+    }
+  ]
+}

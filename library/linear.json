@@ -1,0 +1,53 @@
+{
+  "id": "linear",
+  "name": "Linear",
+  "description": "Your assigned Linear issues and full-text issue search, via Linear's GraphQL API.",
+  "icon": "git",
+  "kind": "manual_rest",
+  "base_url": "https://api.linear.app/graphql",
+  "allowed_hosts": ["api.linear.app"],
+  "auth": {
+    "scheme": "header",
+    "header_name": "Authorization",
+    "cred_ref": "LINEAR_TOKEN",
+    "prefix": ""
+  },
+  "requires_cred": {
+    "name": "LINEAR_TOKEN",
+    "label": "Linear personal API key",
+    "help": "linear.app -> Settings -> Security & access -> API"
+  },
+  "ops": [
+    {
+      "id": "my_issues",
+      "summary": "Issues assigned to me (fields: identifier, title, state.name, assignee.name, priority, createdAt)",
+      "graphql": {
+        "query": "{ viewer { assignedIssues(first:50){ nodes{ identifier title priority createdAt state{ name } assignee{ name } } } } }",
+        "items_path": "data.viewer.assignedIssues.nodes"
+      },
+      "default_columns": [
+        { "header": "Title", "path": "title" },
+        { "header": "Status", "path": "state.name" },
+        { "header": "Assignee", "path": "assignee.name" },
+        { "header": "Priority", "path": "priority" },
+        { "header": "Created", "path": "createdAt" }
+      ]
+    },
+    {
+      "id": "search_issues",
+      "summary": "Search issues by text (fields: identifier, title, state.name, assignee.name, createdAt)",
+      "graphql": {
+        "query": "query($q:String!){ issueSearch(query:$q,first:25){ nodes{ identifier title createdAt state{ name } assignee{ name } } } }",
+        "variables": ["q"],
+        "items_path": "data.issueSearch.nodes"
+      },
+      "default_args": { "q": "" },
+      "default_columns": [
+        { "header": "Title", "path": "title" },
+        { "header": "Status", "path": "state.name" },
+        { "header": "Assignee", "path": "assignee.name" },
+        { "header": "Created", "path": "createdAt" }
+      ]
+    }
+  ]
+}

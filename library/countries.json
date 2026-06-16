@@ -1,0 +1,34 @@
+{
+  "id": "countries",
+  "name": "Countries (GraphQL demo)",
+  "description": "A public, no-auth GraphQL API listing every country. A working demo of a GraphQL connector op.",
+  "icon": "cloud",
+  "kind": "manual_rest",
+  "base_url": "https://countries.trevorblades.com",
+  "allowed_hosts": ["countries.trevorblades.com"],
+  "ops": [
+    {
+      "id": "all",
+      "summary": "List all countries",
+      "graphql": {
+        "query": "{ countries { code name capital currency } }",
+        "items_path": "data.countries"
+      },
+      "default_columns": [
+        { "header": "Code", "path": "code" },
+        { "header": "Name", "path": "name" },
+        { "header": "Capital", "path": "capital" }
+      ]
+    },
+    {
+      "id": "one",
+      "summary": "One country by ISO code",
+      "graphql": {
+        "query": "query($code: ID!){ country(code: $code){ code name capital currency } }",
+        "variables": ["code"],
+        "items_path": "data.country"
+      },
+      "default_args": { "code": "US" }
+    }
+  ]
+}

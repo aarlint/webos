@@ -1,0 +1,48 @@
+{
+  "id": "stripe",
+  "name": "Stripe",
+  "description": "List recent customers and charges from your Stripe account. Requires a Stripe secret API key.",
+  "icon": "chart",
+  "kind": "manual_rest",
+  "base_url": "https://api.stripe.com",
+  "allowed_hosts": ["api.stripe.com"],
+  "auth": {
+    "scheme": "bearer",
+    "cred_ref": "STRIPE_API_KEY"
+  },
+  "requires_cred": {
+    "name": "STRIPE_API_KEY",
+    "label": "Stripe secret API key",
+    "help": "dashboard.stripe.com -> Developers -> API keys (use a restricted, read-only key)"
+  },
+  "ops": [
+    {
+      "id": "list_customers",
+      "method": "GET",
+      "path_template": "/v1/customers",
+      "allowed_query": ["limit"],
+      "class": "read",
+      "summary": "List recent customers",
+      "default_args": { "limit": "10" },
+      "default_columns": [
+        { "header": "ID", "path": "id" },
+        { "header": "Email", "path": "email" },
+        { "header": "Name", "path": "name" }
+      ]
+    },
+    {
+      "id": "list_charges",
+      "method": "GET",
+      "path_template": "/v1/charges",
+      "allowed_query": ["limit"],
+      "class": "read",
+      "summary": "List recent charges",
+      "default_args": { "limit": "10" },
+      "default_columns": [
+        { "header": "ID", "path": "id" },
+        { "header": "Amount", "path": "amount" },
+        { "header": "Status", "path": "status" }
+      ]
+    }
+  ]
+}

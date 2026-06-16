@@ -1,0 +1,25 @@
+[package]
+name = "webos-kerneld"
+version = "0.1.0"
+edition = "2021"
+description = "webOS spike: one capability bus, two principals (human + AI), generative Surfaces"
+
+[[bin]]
+name = "kerneld"
+path = "src/main.rs"
+
+[dependencies]
+tokio = { version = "1", features = ["full"] }
+axum = { version = "0.7", features = ["ws"] }
+tower-http = { version = "0.5", features = ["fs"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+reqwest = { version = "0.12", features = ["json", "stream"] }
+tracing = "0.1"
+tracing-subscriber = "0.3"
+futures-util = "0.3"
+keyring = { version = "3.6.3", default-features = false, features = ["apple-native"] }
+chacha20poly1305 = "0.10.1"
+rand = "0.9.2"
+rmcp = { version = "1.7.0", features = ["client", "transport-child-process", "transport-streamable-http-client-reqwest", "reqwest"] }
+base64 = "0.22.1"

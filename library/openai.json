@@ -1,0 +1,31 @@
+{
+  "id": "openai",
+  "name": "OpenAI",
+  "description": "List the models available to your OpenAI account. Requires an OpenAI API key.",
+  "icon": "cloud",
+  "kind": "manual_rest",
+  "base_url": "https://api.openai.com",
+  "allowed_hosts": ["api.openai.com"],
+  "auth": {
+    "scheme": "bearer",
+    "cred_ref": "OPENAI_API_KEY"
+  },
+  "requires_cred": {
+    "name": "OPENAI_API_KEY",
+    "label": "OpenAI API key",
+    "help": "platform.openai.com -> Settings -> API keys"
+  },
+  "ops": [
+    {
+      "id": "list_models",
+      "method": "GET",
+      "path_template": "/v1/models",
+      "class": "read",
+      "summary": "List models available to your account",
+      "default_columns": [
+        { "header": "Model", "path": "id" },
+        { "header": "Owner", "path": "owned_by" }
+      ]
+    }
+  ]
+}

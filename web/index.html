@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>webOS</title>
+  <!-- Vanilla shell chrome (dock, windows, menubar, chat, modals). -->
+  <link rel="stylesheet" href="style.css" />
+  <!-- Tailwind + shadcn styles for AI-composed surfaces, SCOPED to .webos-surface
+       so they never touch the shell chrome above (built by ui/ → web/surface.css). -->
+  <link rel="stylesheet" href="surface.css" />
+</head>
+<body>
+  <div id="desktop">
+    <div id="menubar">
+      <div class="mb-left">
+        <span class="mb-logo"></span>
+        <span class="mb-app">webOS</span>
+        <span class="mb-menu">File</span>
+        <span class="mb-menu">View</span>
+        <span id="mb-wintitle"></span>
+      </div>
+      <div class="mb-right">
+        <div class="seg" id="principal-seg" title="Which principal you act as on the bus">
+          <button class="active" data-p="human">Human</button>
+          <button data-p="ai">AI</button>
+        </div>
+        <span id="clock" class="mb-clock"></span>
+      </div>
+    </div>
+
+    <div id="windows"></div>
+    <div id="dock"></div>
+
+    <!-- global agent-worker toast (spinner + latest activity) -->
+    <div id="agent-toast"><span class="at-spin"></span><span class="at-label"></span></div>
+  </div>
+
+  <!-- Spotlight composer -->
+  <div id="spotlight" class="hidden">
+    <div class="sl-box">
+      <input id="sl-input" placeholder="Describe a screen for the OS to build…" />
+    </div>
+  </div>
+
+  <!-- AI consent prompt: raised when the AI requests an ungoverned action -->
+  <div id="approval" class="hidden">
+    <div class="ap-card">
+      <div class="ap-icon">🛡️</div>
+      <div class="ap-title">The AI is requesting permission</div>
+      <div class="ap-sub">It wants to use a capability it hasn't been granted.</div>
+      <div class="ap-cap mono"></div>
+      <div class="ap-classrow"><span class="ap-class"></span><span class="ap-host mono"></span></div>
+      <div class="ap-desc"></div>
+      <div class="ap-args mono"></div>
+      <div class="ap-btns">
+        <button class="act ap-always">Always Allow</button>
+        <button class="act ghost ap-once">Allow Once</button>
+        <button class="act danger ap-deny">Deny</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- @json-render/react bundle (window.WebOSSurface.mount) — renders AI-composed specs -->
+  <script src="surface.js"></script>
+  <script src="shell.js"></script>
+</body>
+</html>
